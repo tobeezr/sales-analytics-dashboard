@@ -30,25 +30,18 @@ def find_excel_file(keyword):
             return file
     return None
 
-FILES = {
-    "sales": find_excel_file("sales_analysis_results"),
-    "sku": find_excel_file("sku_analysis"),
-    "client": find_excel_file("client_status_analysis"),
-    "advanced": find_excel_file("advanced_sales_insights"),
+# --- GITHUB RAW FILE URLS ---
+GITHUB_FILES = {
+    "sales": "https://raw.githubusercontent.com/yourusername/repo/main/sales_analysis_results.xlsx",
+    "sku": "https://raw.githubusercontent.com/yourusername/repo/main/sku_analysis.xlsx",
+    "client": "https://raw.githubusercontent.com/yourusername/repo/main/client_status_analysis.xlsx",
+    "advanced": "https://raw.githubusercontent.com/yourusername/repo/main/advanced_sales_insights.xlsx",
 }
 
-# -----------------------------------------------------------------------------
-# SAFE DATA LOADER
-# -----------------------------------------------------------------------------
 @st.cache_data
-def safe_load_excel(path):
-    if path is None or not path.exists():
-        return pd.DataFrame()
-
+def load_excel_from_github(url):
     try:
-        df = pd.read_excel(path)
-        if df.empty:
-            return pd.DataFrame()
+        df = pd.read_excel(url)
         df.columns = (
             df.columns.str.strip()
             .str.upper()
@@ -59,13 +52,12 @@ def safe_load_excel(path):
     except Exception:
         return pd.DataFrame()
 
-# -----------------------------------------------------------------------------
-# LOAD DATA
-# -----------------------------------------------------------------------------
-df_sales = safe_load_excel(FILES["sales"])
-df_sku = safe_load_excel(FILES["sku"])
-df_client = safe_load_excel(FILES["client"])
-df_advanced = safe_load_excel(FILES["advanced"])
+# --- LOAD DATA ---
+df_sales = load_excel_from_github(GITHUB_FILES["sales"])
+df_sku = load_excel_from_github(GITHUB_FILES["sku"])
+df_client = load_excel_from_github(GITHUB_FILES["client"])
+df_advanced = load_excel_from_github(GITHUB_FILES["advanced"])
+
 
 # -----------------------------------------------------------------------------
 # SIDEBAR
