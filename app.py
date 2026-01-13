@@ -1,5 +1,5 @@
 # =============================================================================
-# SALES ANALYTICS DASHBOARD – READ ONLY (COLAB EXTRACTS)
+# SALES ANALYTICS DASHBOARD – SAFE MODE (NO DATA / AUTO FILE DETECT)
 # =============================================================================
 
 import streamlit as st
@@ -12,101 +12,92 @@ from pathlib import Path
 # -----------------------------------------------------------------------------
 st.set_page_config(
     page_title="Sales Analytics Dashboard",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
 # -----------------------------------------------------------------------------
-# CONSTANTS & PATHS
+# PATHS
 # -----------------------------------------------------------------------------
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 
+# -----------------------------------------------------------------------------
+# FILE FINDER (handles (3), (6), etc.)
+# -----------------------------------------------------------------------------
+def find_excel_file(keyword):
+    for file in DATA_DIR.glob("*.xlsx"):
+        if keyword.lower() in file.name.lower():
+            return file
+    return None
+
 FILES = {
-    "sales": DATA_DIR / "Sales_Analysis_Results.xlsx",
-    "sku": DATA_DIR / "SKU_Analysis.xlsx",
-    "client": DATA_DIR / "Client_Status_Analysis.xlsx",
-    "advanced": DATA_DIR / "Advanced_Sales_Insights.xlsx",
+    "sales": find_excel_file("sales_analysis_results"),
+    "sku": find_excel_file("sku_analysis"),
+    "client": find_excel_file("client_status_analysis"),
+    "advanced": find_excel_file("advanced_sales_insights"),
 }
 
 # -----------------------------------------------------------------------------
-# UTILITY FUNCTIONS
+# SAFE DATA LOADER
 # -----------------------------------------------------------------------------
 @st.cache_data
-def load_excel(path: Path, label: str) -> pd.DataFrame:
-    if not path.exists():
-        st.error(f"❌ Missing file: {label} → `{path.name}`")
-        st.stop()
-    return pd.read_excel(path)
+def safe_load_excel(path):
+    if path is None or not path.exists():
+        return pd.DataFrame()
 
-
-def clean_columns(df: pd.DataFrame) -> pd.DataFrame:
-    df = df.copy()
-    df.columns = (
-        df.columns.str.strip()
-        .str.upper()
-        .str.replace(" ", "_")
-        .str.replace("-", "_")
-    )
-    return df
-
+    try:
+        df = pd.read_excel(path)
+        if df.empty:
+            return pd.DataFrame()
+        df.columns = (
+            df.columns.str.strip()
+            .str.upper()
+            .str.replace(" ", "_")
+            .str.replace("-", "_")
+        )
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 # -----------------------------------------------------------------------------
-# LOAD DATA (FROM COLAB EXPORTS)
+# LOAD DATA
 # -----------------------------------------------------------------------------
-df_sales = clean_columns(load_excel(FILES["sales"], "Sales Analysis Results"))
-df_sku = clean_columns(load_excel(FILES["sku"], "SKU Analysis"))
-df_client = clean_columns(load_excel(FILES["client"], "Client Status Analysis"))
-df_advanced = clean_columns(load_excel(FILES["advanced"], "Advanced Sales Insights"))
+df_sales = safe_load_excel(FILES["sales"])
+df_sku = safe_load_excel(FILES["sku"])
+df_client = safe_load_excel(FILES["client"])
+df_advanced = safe_load_excel(FILES["advanced"])
 
 # -----------------------------------------------------------------------------
 # SIDEBAR
 # -----------------------------------------------------------------------------
-st.sidebar.title("📊 Dashboard Controls")
-st.sidebar.success("Data source: Colab extracts (GitHub)")
+st.sidebar.title("📊 Navigation")
+st.sidebar.info("Data source: GitHub (Colab extracts)")
 
 section = st.sidebar.radio(
-    "Go to section",
+    "Select section",
     [
         "Overview",
         "Sales Performance",
         "SKU Analysis",
         "Client Status",
         "Advanced Insights",
-    ],
+    ]
 )
 
 # -----------------------------------------------------------------------------
 # OVERVIEW
 # -----------------------------------------------------------------------------
 if section == "Overview":
-    st.title("📈 Sales Analytics Overview")
+    st.title("📈 Overview")
 
-    col1, col2, col3 = st.columns(3)
+    if df_sales.empty:
+        st.warning("No sales data available")
+    else:
+        col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        "Total Revenue",
-        f"{df_sales['TOTAL_REVENUE'].sum():,.0f}"
-    )
-
-    col2.metric(
-        "Total Orders",
-        f"{df_sales['TOTAL_ORDERS'].sum():,.0f}"
-    )
-
-    col3.metric(
-        "Active Clients",
-        df_client.shape[0]
-    )
-
-    st.subheader("Revenue by Region")
-    fig = px.bar(
-        df_sales,
-        x="REGION",
-        y="TOTAL_REVENUE",
-        title="Revenue per Region",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        col1.metric("Total Revenue", f"{df_sales.select_dtypes('number').sum().sum():,.0f}")
+        col2.metric("Rows", len(df_sales))
+        col3.metric("Active Clients", len(df_client) if not df_client.empty else 0)
 
 # -----------------------------------------------------------------------------
 # SALES PERFORMANCE
@@ -114,16 +105,19 @@ if section == "Overview":
 elif section == "Sales Performance":
     st.title("💰 Sales Performance")
 
-    st.dataframe(df_sales, use_container_width=True)
+    if df_sales.empty:
+        st.warning("No sales data available")
+    else:
+        st.dataframe(df_sales, use_container_width=True)
 
-    fig = px.line(
-        df_sales,
-        x="DATE",
-        y="TOTAL_REVENUE",
-        color="REGION",
-        title="Revenue Trend",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        numeric_cols = df_sales.select_dtypes("number").columns
+        if len(numeric_cols) >= 1:
+            fig = px.line(
+                df_sales,
+                y=numeric_cols[0],
+                title="Sales Trend"
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # SKU ANALYSIS
@@ -131,50 +125,43 @@ elif section == "Sales Performance":
 elif section == "SKU Analysis":
     st.title("📦 SKU Analysis")
 
-    st.dataframe(df_sku, use_container_width=True)
-
-    fig = px.bar(
-        df_sku,
-        x="SKU",
-        y="SALES_VALUE",
-        title="Top SKU by Sales Value",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if df_sku.empty:
+        st.warning("No SKU data available")
+    else:
+        st.dataframe(df_sku, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # CLIENT STATUS
 # -----------------------------------------------------------------------------
 elif section == "Client Status":
-    st.title("👥 Client Status Analysis")
+    st.title("👥 Client Status")
 
-    st.dataframe(df_client, use_container_width=True)
+    if df_client.empty:
+        st.warning("No client status data available")
+    else:
+        st.dataframe(df_client, use_container_width=True)
 
-    fig = px.pie(
-        df_client,
-        names="CLIENT_STATUS",
-        title="Client Distribution",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        if "CLIENT_STATUS" in df_client.columns:
+            fig = px.pie(
+                df_client,
+                names="CLIENT_STATUS",
+                title="Client Distribution"
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # ADVANCED INSIGHTS
 # -----------------------------------------------------------------------------
 elif section == "Advanced Insights":
-    st.title("🚀 Advanced Sales Insights")
+    st.title("🚀 Advanced Insights")
 
-    st.dataframe(df_advanced, use_container_width=True)
-
-    if "INSIGHT_TYPE" in df_advanced.columns:
-        fig = px.bar(
-            df_advanced,
-            x="INSIGHT_TYPE",
-            y="VALUE",
-            title="Advanced Metrics",
-        )
-        st.plotly_chart(fig, use_container_width=True)
+    if df_advanced.empty:
+        st.warning("No advanced insights data available")
+    else:
+        st.dataframe(df_advanced, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # FOOTER
 # -----------------------------------------------------------------------------
 st.markdown("---")
-st.caption("📌 Powered by Colab analytics • Streamlit dashboard (Read-Only)")
+st.caption("Read-only dashboard • Safe mode enabled • No data = no crash")
