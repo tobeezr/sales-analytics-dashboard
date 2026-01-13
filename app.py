@@ -16,12 +16,8 @@ warnings.filterwarnings('ignore')
 # ============================================================================
 # PAGE CONFIG
 # ============================================================================
-st.set_page_config(
-    page_title="Sales Analytics Dashboard",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Sales Analytics Dashboard", layout="wide")
+
 
 # ============================================================================
 # CUSTOM CSS
