@@ -1,4 +1,16 @@
 # ============================================================================
+# DATA FILE PATHS (FROM COLAB EXPORTS)
+# ============================================================================
+
+DATA_PATH = "data"
+
+FILES = {
+    "sales": f"{DATA_PATH}/Sales_Analysis_Results.xlsx",
+    "sku": f"{DATA_PATH}/SKU_Analysis.xlsx",
+    "client_status": f"{DATA_PATH}/Client_Status_Analysis.xlsx",
+    "advanced": f"{DATA_PATH}/Advanced_Sales_Insights.xlsx",
+}
+# ============================================================================
 # COMPLETE SALES ANALYTICS DASHBOARD - STREAMLIT APP
 # Save this file as: app.py
 # ============================================================================
